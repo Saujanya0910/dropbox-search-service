@@ -2,7 +2,8 @@ import { Dropbox, files } from 'dropbox';
 import { CONFIG } from '../config';
 import { indexDocument } from './elasticsearch';
 import NodeCache from 'node-cache';
-import { FILE_CONSTANTS, CACHE_KEYS } from '../constants';
+import { FILE_CONSTANTS, CACHE_KEYS, DROPBOX_CONSTANTS } from '../constants';
+import { parseFileContent } from './parser';
 
 const dropbox = new Dropbox({ accessToken: CONFIG.dropbox.accessToken });
 const cache = new NodeCache({ stdTTL: CONFIG.cache.ttl });
@@ -64,7 +65,11 @@ export const processFile = async (file: files.FileMetadataReference) => {
     }
 
     const response = await dropbox.filesDownload({ path: file.path_lower });
-    const content = (response.result as any).fileBinary.toString('utf8');
+    const buffer = (response.result as any).fileBinary;
+    const content = await parseFileContent(buffer, {
+      dropboxPath: file.path_lower,
+      lastModified: new Date(file.server_modified),
+    });
 
     await indexDocument({
       id: file.id,
@@ -87,15 +92,27 @@ export const processFile = async (file: files.FileMetadataReference) => {
 };
 
 /**
+ * Process a batch of files in parallel
+ * @param files 
+ */
+const processFileBatch = async (files: files.FileMetadataReference[]) => {
+  await Promise.allSettled(files.map(file => processFile(file)));
+};
+
+/**
  * Read files from Dropbox folder and handle indexing
  */
 export const startFileIndexing = async () => {
   try {
-    const response = await dropbox.filesListFolder({ path: '' });
+    const response = await dropbox.filesListFolder({ path: CONFIG.dropbox.folderPath });
     const files = response.result.entries.filter((entry) => entry['.tag'] === 'file');
 
-    for (const file of files) {
-      await processFile(file);
+    // Process files in batches of 3
+    const BATCH_SIZE = DROPBOX_CONSTANTS.MAX_BATCH_SIZE;
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      await processFileBatch(batch);
+      console.log(`Processed batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(files.length/BATCH_SIZE)}`);
     }
 
     console.log('Initial indexing completed');
@@ -109,18 +126,24 @@ export const startFileIndexing = async () => {
  */
 export const handleDropboxChanges = async () => {
   try {
-    const response = await dropbox.filesListFolderGetLatestCursor({ path: '' });
+    const response = await dropbox.filesListFolderGetLatestCursor({ path: CONFIG.dropbox.folderPath });
     const latestCursor = response.result.cursor;
 
     const changes = await dropbox.filesListFolderContinue({ cursor: latestCursor });
+    const fileChanges = changes.result.entries.filter(entry => entry['.tag'] === 'file');
     
-    for (const entry of changes.result.entries) {
-      if (entry['.tag'] === 'file') {
-        await processFile(entry);
+    // Process changed files in batches of 3
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < fileChanges.length; i += BATCH_SIZE) {
+      const batch = fileChanges.slice(i, i + BATCH_SIZE);
+      await processFileBatch(batch);
+      
+      // Clear cache for processed files
+      batch.forEach(entry => {
         if (entry.path_lower) {
           cache.del(CACHE_KEYS.SEARCH(entry.path_lower));
         }
-      }
+      });
     }
   } catch (error) {
     console.error('Error processing webhook changes:', error);
