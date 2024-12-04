@@ -149,6 +149,10 @@ export const indexDocument = async (document: IndexedDocument) => {
   cacheService.set(docId, true);
 };
 
+/**
+ * Search documents in Elasticsearch based on supplied query
+ * @param query 
+ */
 export const searchDocuments = async (query: SearchQuery) => {
   const { q, page = 1, limit = 10, dateRange, fileType, minSize, maxSize } = query;
   
