@@ -1,6 +1,8 @@
 import { Client } from '@elastic/elasticsearch';
 import { CONFIG } from '../config';
-import { IndexedDocument, SearchQuery } from '../types';
+import { IndexedDocument, SearchQuery } from '../types/index';
+import crypto from 'crypto';
+import { cacheService } from './cache';
 
 export const elasticSearchClient = new Client({
   node: CONFIG.elasticsearch.url,
@@ -9,6 +11,51 @@ export const elasticSearchClient = new Client({
   },
 });
 
+/**
+ * Helper to generate a unique document ID based on Dropbox path and last modified date
+ * @param dropboxPath 
+ * @param lastModified 
+ * @returns 
+ */
+const generateDocumentId = (dropboxPath: string, lastModified: Date): string => {
+  return crypto
+    .createHash('md5')
+    .update(`${dropboxPath}:${lastModified.getTime()}`)
+    .digest('hex');
+};
+
+/**
+ * Check if document exists in Elasticsearch before trying to re-index it
+ * @param metadata 
+ * @returns 
+ */
+export const checkDocumentExists = async (metadata: { 
+  dropboxPath: string; 
+  lastModified: Date 
+}): Promise<boolean> => {
+  const docId = generateDocumentId(metadata.dropboxPath, metadata.lastModified);
+  
+  try {
+    const exists = await elasticSearchClient.exists({
+      index: CONFIG.elasticsearch.index,
+      id: docId
+    });
+    
+    if (exists) {
+      cacheService.set(docId, true);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('[ELASTICSEARCH SERVICE] [checkDocumentExists] Error checking document existence:', error);
+    return false;
+  }
+};
+
+/**
+ * Setup Elasticsearch indices and ingest pipeline
+ */
 export const setupElasticsearch = async () => {
   const [docIndexExists, pipelineIndexExists] = await Promise.all([
     elasticSearchClient.indices.exists({ index: CONFIG.elasticsearch.index }),
@@ -87,11 +134,19 @@ export const setupElasticsearch = async () => {
  * @param document 
  */
 export const indexDocument = async (document: IndexedDocument) => {
+  const docId = generateDocumentId(document.dropboxPath, document.lastModified);
+  
   await elasticSearchClient.index({
     index: CONFIG.elasticsearch.index,
-    id: document.id,
-    document,
+    id: docId,
+    document: {
+      ...document,
+      id: docId
+    }
   });
+  
+  // Cache the new document
+  cacheService.set(docId, true);
 };
 
 export const searchDocuments = async (query: SearchQuery) => {
@@ -153,3 +208,46 @@ export const searchDocuments = async (query: SearchQuery) => {
 
   return response;
 };
+
+/**
+ * Get a document by ID
+ * @param id 
+ * @returns 
+ */
+export const getDocumentById = async (id: string) => {
+  const response = await elasticSearchClient.get({
+    index: CONFIG.elasticsearch.index,
+    id,
+  });
+
+  return response;
+};
+
+/**
+ * Delete a document by ID
+ * @param id 
+ */
+export const deleteDocument = async (id: string) => {
+  await elasticSearchClient.delete({
+    index: CONFIG.elasticsearch.index,
+    id
+  });
+};
+
+/**
+ * Find document ID by Dropbox path
+ * @param dropboxPath 
+ * @returns 
+ */
+export const findDocumentId = async (dropboxPath: string) => {
+  const response = await elasticSearchClient.search({
+    index: CONFIG.elasticsearch.index,
+    query: {
+      match: {
+        dropboxPath
+      }
+    }
+  });
+
+  return (response.hits.hits && response.hits.hits.length) ? response.hits.hits[0]._id : null;
+}
