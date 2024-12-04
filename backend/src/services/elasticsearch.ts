@@ -2,7 +2,7 @@ import { Client } from '@elastic/elasticsearch';
 import { CONFIG } from '../config';
 import { IndexedDocument, SearchQuery } from '../types';
 
-const client = new Client({
+export const elasticSearchClient = new Client({
   node: CONFIG.elasticsearch.url,
   auth: {
     apiKey: CONFIG.elasticsearch.apiKey,
@@ -10,10 +10,14 @@ const client = new Client({
 });
 
 export const setupElasticsearch = async () => {
-  const indexExists = await client.indices.exists({ index: CONFIG.elasticsearch.index });
+  const [docIndexExists, pipelineExists, pipelineIndexExists] = await Promise.all([
+    elasticSearchClient.indices.exists({ index: CONFIG.elasticsearch.index }),
+    elasticSearchClient.ingest.getPipeline({ id: CONFIG.elasticsearch.pipelineName }),
+    elasticSearchClient.indices.exists({ index: CONFIG.elasticsearch.pipelineIndex }),
+  ]);
   
-  if (!indexExists) {
-    await client.indices.create({
+  if (!docIndexExists) {
+    await elasticSearchClient.indices.create({
       index: CONFIG.elasticsearch.index,
       mappings: {
         properties: {
@@ -28,10 +32,53 @@ export const setupElasticsearch = async () => {
       },
     });
   }
+
+  if (!pipelineExists) {
+    await elasticSearchClient.ingest.putPipeline({
+      id: CONFIG.elasticsearch.pipelineName,
+      body: {
+        description: 'Extract attachment information',
+        processors: [
+          {
+            attachment: {
+              field: 'data',
+              target_field: 'attachment'
+            }
+          }
+        ]
+      }
+    });
+  }
+
+  if (!pipelineIndexExists) {
+    await elasticSearchClient.indices.create({
+      index: CONFIG.elasticsearch.pipelineIndex,
+      mappings: {
+        properties: {
+          data: { type: 'binary' },
+          attachment: {
+            properties: {
+              content: { type: 'text' },
+              content_type: { type: 'keyword' },
+              language: { type: 'keyword' },
+              title: { type: 'text' },
+              date: { type: 'date' },
+              author: { type: 'text' },
+              keywords: { type: 'text' }
+            }
+          }
+        }
+      }
+    });
+  }
 };
 
+/**
+ * Index a document in Elasticsearch
+ * @param document 
+ */
 export const indexDocument = async (document: IndexedDocument) => {
-  await client.index({
+  await elasticSearchClient.index({
     index: CONFIG.elasticsearch.index,
     id: document.id,
     document,
@@ -81,7 +128,7 @@ export const searchDocuments = async (query: SearchQuery) => {
     });
   }
 
-  const response = await client.search({
+  const response = await elasticSearchClient.search({
     index: CONFIG.elasticsearch.index,
     from: (page - 1) * limit,
     size: limit,
