@@ -92,6 +92,11 @@ export const processFile = async (file: (files.FileMetadataReference | files.Del
       lastModified: new Date(file.server_modified),
     });
 
+    if(!content) {
+      console.log(`[DROPBOX SERVICE] [processFile] Skipping ${file.path_display}: No content found after parsing`);
+      return;
+    }
+
     await indexDocument({
       id: file.id,
       fileName: file.name,
