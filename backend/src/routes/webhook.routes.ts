@@ -1,24 +1,9 @@
 import { Router } from 'express';
-import { handleDropboxChanges } from '../services/dropbox';
+import { WebhookController } from '../controllers/webhook.controller';
 
 const router = Router();
 
-// Endpoint for webhook verification
-router.get('/', (req, res) => {
-  const challenge = req.query.challenge;
-  if (challenge) {
-    res.send(challenge);
-  } else {
-    res.status(400).send('No challenge found');
-  }
-});
-
-// Endpoint for receiving webhook notifications
-router.post('/', async (req, res) => {
-  res.sendStatus(200);
-  if (req.body.list_folder && req.body.list_folder.accounts) {
-    await handleDropboxChanges();
-  }
-});
+router.get('/', WebhookController.verifyWebhook);
+router.post('/', WebhookController.handleWebhookNotification);
 
 export default router;
