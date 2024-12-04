@@ -24,23 +24,14 @@ app.use(errorHandler);
 const start = async () => {
   try {
     await setupElasticsearch();
-    await startFileIndexing();
+    startFileIndexing()
+      .then(() => console.log('File indexing started'))
+      .catch((error) => console.error('Error during file indexing:', error));
 
-    const server = app.listen(CONFIG.port, () => {
+    app.listen(CONFIG.port, () => {
       console.log(`Server running on port ${CONFIG.port}`);
     });
 
-    // // Graceful shutdown
-    // const shutdown = async () => {
-    //   console.log('Shutting down gracefully...');
-    //   server.close(() => {
-    //     console.log('Server closed');
-    //     process.exit(0);
-    //   });
-    // };
-
-    // process.on('SIGTERM', shutdown);
-    // process.on('SIGINT', shutdown);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
