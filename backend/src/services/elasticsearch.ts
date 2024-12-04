@@ -10,11 +10,20 @@ export const elasticSearchClient = new Client({
 });
 
 export const setupElasticsearch = async () => {
-  const [docIndexExists, pipelineExists, pipelineIndexExists] = await Promise.all([
+  const [docIndexExists, pipelineIndexExists] = await Promise.all([
     elasticSearchClient.indices.exists({ index: CONFIG.elasticsearch.index }),
-    elasticSearchClient.ingest.getPipeline({ id: CONFIG.elasticsearch.pipelineName }),
     elasticSearchClient.indices.exists({ index: CONFIG.elasticsearch.pipelineIndex }),
   ]);
+
+  let pipelineExists = false;
+  try {
+    await elasticSearchClient.ingest.getPipeline({ id: CONFIG.elasticsearch.pipelineName });
+    pipelineExists = true;
+  } catch (error) {
+    if ((error as any).meta?.statusCode !== 404) {
+      throw error;
+    }
+  }
   
   if (!docIndexExists) {
     await elasticSearchClient.indices.create({
