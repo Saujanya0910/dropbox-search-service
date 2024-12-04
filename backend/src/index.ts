@@ -16,6 +16,7 @@ app.use(morgan('short'));
 app.use(cors());
 app.use(express.json());
 app.use(limiter);
+app.set('trust proxy', 1);
 
 app.use('/api', routes);
 
@@ -24,16 +25,23 @@ app.use(errorHandler);
 const start = async () => {
   try {
     await setupElasticsearch();
+
+    // initial indexing
     startFileIndexing()
-      .then(() => console.log('File indexing started'))
-      .catch((error) => console.error('Error during file indexing:', error));
+      .catch((error) => console.error('[SERVER] Error during file indexing:', error));
+
+    // set up interval for subsequent indexing
+    setInterval(() => {
+      startFileIndexing()
+        .catch((error) => console.error('[SERVER] Error during file indexing:', error));
+    }, CONFIG.dropbox.indexingIntervalInSeconds);
 
     app.listen(CONFIG.port, () => {
-      console.log(`Server running on port ${CONFIG.port}`);
+      console.log(`[SERVER] Server running on port ${CONFIG.port}`);
     });
 
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('[SERVER] Failed to start server:', error);
     process.exit(1);
   }
 };

@@ -12,6 +12,7 @@ const envSchema = z.object({
   ELASTICSEARCH_PIPELINE_INDEX: z.string(),
   DROPBOX_ACCESS_TOKEN: z.string(),
   DROPBOX_FOLDER_PATH: z.string(),
+  INDEXING_INTERVAL_SECONDS: z.string().default('30'),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100'),
   CACHE_TTL: z.string().default('3600'),
@@ -31,6 +32,7 @@ export const CONFIG = {
   dropbox: {
     accessToken: env.DROPBOX_ACCESS_TOKEN,
     folderPath: env.DROPBOX_FOLDER_PATH,
+    indexingIntervalInSeconds: parseInt(env.INDEXING_INTERVAL_SECONDS || '120000')
   },
   rateLimit: {
     windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS, 10000),
