@@ -4,6 +4,7 @@ import { getDropboxUrl } from '../services/dropbox';
 import { cacheService } from '../services/cache';
 import { SearchQuerySchema } from '../schemas/search.schema';
 import { CACHE_KEYS } from '../constants';
+import { IndexedDocument } from '../types';
 
 export class SearchController {
   /**
@@ -25,11 +26,10 @@ export class SearchController {
       
       const results = await Promise.all(
         searchResponse.hits.hits.map(async (hit) => {
-          const source = hit._source as any;
+          const source = hit._source as IndexedDocument;
           const dropboxUrl = await getDropboxUrl(source.dropboxPath);
           
           return {
-            id: hit._id,
             fileName: source.fileName,
             fileType: source.fileType,
             fileSize: source.fileSize,
