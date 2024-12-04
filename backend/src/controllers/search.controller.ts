@@ -3,18 +3,24 @@ import { searchDocuments } from '../services/elasticsearch';
 import { getDropboxUrl } from '../services/dropbox';
 import { cacheService } from '../services/cache';
 import { SearchQuerySchema } from '../schemas/search.schema';
+import { CACHE_KEYS } from '../constants';
 
 export class SearchController {
+  /**
+   * Handler for main /search endpoint
+   * @param req 
+   * @param res 
+   */
   static async search(req: Request, res: Response) {
     try {
       const query = SearchQuerySchema.parse(req.query);
-      const cacheKey = `search:${JSON.stringify(query)}`;
+      const cacheKey = CACHE_KEYS.SEARCH(JSON.stringify(query));
       
       const cachedResult = cacheService.get(cacheKey);
       if (cachedResult) {
         return res.json(cachedResult);
       }
-
+  
       const searchResponse = await searchDocuments(query);
       
       const results = await Promise.all(
@@ -34,7 +40,7 @@ export class SearchController {
           };
         })
       );
-
+  
       const response = {
         results,
         total: searchResponse.hits.total,
@@ -43,11 +49,13 @@ export class SearchController {
           (searchResponse.hits.total as any).value / 10
         ),
       };
-
+  
       cacheService.set(cacheKey, response);
-      res.json(response);
+  
+      return res.json(response);
     } catch (error) {
-      res.status(400).json({ 
+      console.error('Search error:', error);
+      return res.status(400).json({ 
         error: 'Invalid search parameters',
         details: error instanceof Error ? error.message : 'Unknown error'
       });

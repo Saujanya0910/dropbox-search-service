@@ -1,32 +1,68 @@
-import { Dropbox } from 'dropbox';
+import { Dropbox, files } from 'dropbox';
 import { CONFIG } from '../config';
 import { indexDocument } from './elasticsearch';
 import NodeCache from 'node-cache';
+import { FILE_CONSTANTS, CACHE_KEYS } from '../constants';
 
 const dropbox = new Dropbox({ accessToken: CONFIG.dropbox.accessToken });
 const cache = new NodeCache({ stdTTL: CONFIG.cache.ttl });
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const SUPPORTED_EXTENSIONS = ['.txt', '.pdf', '.docx'];
-
+/**
+ * Get temporary link for Dropbox file
+ * @param path 
+ */
 export const getDropboxUrl = async (path: string) => {
   const response = await dropbox.filesGetTemporaryLink({ path });
   return response.result.link;
 };
 
-const processFile = async (file: any) => {
-  if (file.size > MAX_FILE_SIZE) {
+/**
+ * Get content of Dropbox file
+ * @param path 
+ */
+export const getDropboxFileContent = async (path: string) => {
+  const cachedContent = cache.get(CACHE_KEYS.SEARCH(path));
+  if (cachedContent) {
+    return cachedContent;
+  }
+
+  const response = await dropbox.filesDownload({ path });
+  const content = (response.result as any).fileBinary.toString('utf8');
+  cache.set(CACHE_KEYS.SEARCH(path), content);
+
+  return content;
+};
+
+/**
+ * Process a file and index it in Elasticsearch
+ * @param file 
+ */
+export const processFile = async (file: files.FileMetadataReference) => {
+  if (file.size > FILE_CONSTANTS.MAX_SIZE) {
     console.log(`Skipping ${file.path_display}: File too large`);
     return;
   }
 
   const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-  if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+  if (!FILE_CONSTANTS.SUPPORTED_EXTENSIONS.includes(extension as any)) {
     console.log(`Skipping ${file.path_display}: Unsupported file type`);
     return;
   }
 
   try {
+    if (!file.path_lower) {
+      throw new Error(`File path is undefined for file: ${file.name}`);
+    }
+
+    // Check if file was modified since last processing
+    const lastProcessedTime = cache.get(CACHE_KEYS.LAST_PROCESSED(file.id)) as number | undefined;
+    const fileModifiedTime = new Date(file.server_modified).getTime();
+
+    if (typeof lastProcessedTime === 'number' && fileModifiedTime <= lastProcessedTime) {
+      console.log(`Skipping ${file.path_display}: No changes since last processing`);
+      return;
+    }
+
     const response = await dropbox.filesDownload({ path: file.path_lower });
     const content = (response.result as any).fileBinary.toString('utf8');
 
@@ -41,12 +77,18 @@ const processFile = async (file: any) => {
       dropboxPath: file.path_lower,
     });
 
+    // Store the processing timestamp
+    cache.set(CACHE_KEYS.LAST_PROCESSED(file.id), fileModifiedTime);
+
     console.log(`Indexed ${file.path_display}`);
   } catch (error) {
     console.error(`Error processing ${file.path_display}:`, error);
   }
 };
 
+/**
+ * Read files from Dropbox folder and handle indexing
+ */
 export const startFileIndexing = async () => {
   try {
     const response = await dropbox.filesListFolder({ path: '' });
@@ -62,33 +104,25 @@ export const startFileIndexing = async () => {
   }
 };
 
-let cursor: string | null = null;
-
-export const startLongPolling = async () => {
+/**
+ * Process changes after event update from Dropbox webhook
+ */
+export const handleDropboxChanges = async () => {
   try {
-    if (!cursor) {
-      const response = await dropbox.filesListFolderGetLatestCursor({ path: '' });
-      cursor = response.result.cursor;
-    }
+    const response = await dropbox.filesListFolderGetLatestCursor({ path: '' });
+    const latestCursor = response.result.cursor;
 
-    const changes = await dropbox.filesListFolderLongpoll({ cursor });
-
-    if (changes.result.changes) {
-      const response = await dropbox.filesListFolderContinue({ cursor });
-      cursor = response.result.cursor;
-
-      for (const entry of response.result.entries) {
-        if (entry['.tag'] === 'file') {
-          await processFile(entry);
-          cache.del(`search:${entry.path_lower}`);
+    const changes = await dropbox.filesListFolderContinue({ cursor: latestCursor });
+    
+    for (const entry of changes.result.entries) {
+      if (entry['.tag'] === 'file') {
+        await processFile(entry);
+        if (entry.path_lower) {
+          cache.del(CACHE_KEYS.SEARCH(entry.path_lower));
         }
       }
     }
-
-    // Continue long polling
-    startLongPolling();
   } catch (error) {
-    console.error('Error in long polling:', error);
-    setTimeout(startLongPolling, 5000);
+    console.error('Error processing webhook changes:', error);
   }
 };

@@ -9,14 +9,12 @@ const client = new Client({
   },
 });
 
-const INDEX_NAME = 'documents';
-
 export const setupElasticsearch = async () => {
-  const indexExists = await client.indices.exists({ index: INDEX_NAME });
+  const indexExists = await client.indices.exists({ index: CONFIG.elasticsearch.index });
   
   if (!indexExists) {
     await client.indices.create({
-      index: INDEX_NAME,
+      index: CONFIG.elasticsearch.index,
       mappings: {
         properties: {
           fileName: { type: 'text' },
@@ -34,7 +32,7 @@ export const setupElasticsearch = async () => {
 
 export const indexDocument = async (document: IndexedDocument) => {
   await client.index({
-    index: INDEX_NAME,
+    index: CONFIG.elasticsearch.index,
     id: document.id,
     document,
   });
@@ -84,7 +82,7 @@ export const searchDocuments = async (query: SearchQuery) => {
   }
 
   const response = await client.search({
-    index: INDEX_NAME,
+    index: CONFIG.elasticsearch.index,
     from: (page - 1) * limit,
     size: limit,
     query: {
