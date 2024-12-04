@@ -20,7 +20,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search documents..."
+          placeholder="Search within documents..."
           className="w-full px-4 py-3 pl-12 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Calendar, FileType, HardDrive } from 'lucide-react';
 import { SearchFilters as SearchFiltersType } from '../types/search';
+import { SUPPORTED_EXTENSIONS } from '@/constants';
+
 
 interface SearchFiltersProps {
   filters: SearchFiltersType;
@@ -11,14 +13,15 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   filters,
   onFilterChange,
 }) => {
-  const fileTypes = ['txt', 'pdf', 'docx'];
+  
+  const fileTypes = SUPPORTED_EXTENSIONS.map((ext) => ext.replace('.', '').toUpperCase());
 
   return (
     <div className="space-y-6 p-4 bg-white rounded-lg shadow">
       <div>
         <h3 className="flex items-center text-sm font-medium text-gray-700 mb-2">
           <Calendar className="w-4 h-4 mr-2" />
-          Date Range
+          Last Modified Date
         </h3>
         <div className="space-y-2">
           <input
@@ -27,8 +30,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
               onFilterChange({
                 ...filters,
                 dateRange: {
-                  ...filters.dateRange,
                   start: e.target.value ? new Date(e.target.value) : null,
+                  end: filters.dateRange?.end || null,
                 },
               })
             }
@@ -40,7 +43,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
               onFilterChange({
                 ...filters,
                 dateRange: {
-                  ...filters.dateRange,
+                  start: filters.dateRange?.start || null,
                   end: e.target.value ? new Date(e.target.value) : null,
                 },
               })
@@ -69,7 +72,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                 }}
                 className="mr-2"
               />
-              .{type}
+              {type}
             </label>
           ))}
         </div>

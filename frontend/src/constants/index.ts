@@ -1,0 +1,1 @@
+export const SUPPORTED_EXTENSIONS = ['.txt', '.pdf', '.docx', '.doc', '.json', '.jpg', '.jpeg', '.png'];

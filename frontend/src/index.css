@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+em {
+  border: 1px red solid;
+  padding: 2px;
+  color: black;
+}
