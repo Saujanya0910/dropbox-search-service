@@ -2,7 +2,7 @@ import axios from 'axios';
 import { SearchFilters, SearchResponse } from '../types/search';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
 export const searchDocuments = async (
