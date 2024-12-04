@@ -12,7 +12,7 @@ export const parseFileContent = async (
   // check if document already exists and is up to date
   const exists = await checkDocumentExists(metadata);
   if (exists) {
-    console.log(`File ${metadata.dropboxPath} already processed with same lastModified, skipping...`);
+    console.log(`[PARSER SERVICE] [parseFileContent] File ${metadata.dropboxPath} already processed with same lastModified, skipping...`);
     return '';
   }
 
@@ -46,7 +46,7 @@ export const parseFileContentWithElastic = async (buffer: Buffer, client: Client
     const source = result._source as { attachment: { content: string } };
     return source.attachment.content || '';
   } catch (error) {
-    console.error('Error parsing file with Elasticsearch:', error);
+    console.error('[PARSER SERVICE] [parseFileContentWithElastic] Error parsing file with Elasticsearch:', error);
     throw new Error('Failed to parse file using Elasticsearch');
   }
 };

@@ -54,7 +54,7 @@ export class SearchController {
   
       return res.json(response);
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('[SEARCH CONTROLLER] [search] Search error:', error);
       return res.status(400).json({ 
         error: 'Invalid search parameters',
         details: error instanceof Error ? error.message : 'Unknown error'
