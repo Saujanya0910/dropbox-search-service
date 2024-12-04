@@ -7,7 +7,8 @@ export const FILE_CONSTANTS = {
 
 export const DROPBOX_CONSTANTS = {
   FOLDER_PATH: CONFIG.dropbox.folderPath,
-  MAX_BATCH_SIZE: 3
+  MAX_BATCH_SIZE: 3,
+  FILE_TYPES: ['file', 'deleted'],
 } as const;
 
 export const CACHE_KEYS = {
