@@ -26,7 +26,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       <div>
         <h3 className="flex items-center text-sm font-medium text-gray-700 mb-2">
           <Calendar className="w-4 h-4 mr-2" />
-          Last Modified Date
+          File Created Date
         </h3>
         <div className="space-y-2">
           <input
