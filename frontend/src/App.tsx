@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from 'react-query';
 import { SearchBar } from './components/SearchBar';
 import { SearchFilters } from './components/SearchFilters';
@@ -12,11 +12,13 @@ function App() {
 
   const { data, isLoading } = useQuery(
     ['search', query, filters],
-    () => searchDocuments(query, filters),
-    {
-      enabled: !!query,
-    }
+    () => searchDocuments(query, filters)
   );
+
+  const handleReset = () => {
+    setQuery('');
+    setFilters({});
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -29,7 +31,11 @@ function App() {
         </div>
 
         <div className="flex justify-center mb-8">
-          <SearchBar onSearch={setQuery} />
+          <SearchBar 
+            query={query}
+            onSearch={setQuery}
+            onReset={handleReset}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

@@ -16,6 +16,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   
   const fileTypes = SUPPORTED_EXTENSIONS.map((ext) => ext.replace('.', '').toUpperCase());
 
+  const formatDateForInput = (date: Date | null) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  };
+
   return (
     <div className="space-y-6 p-4 bg-white rounded-lg shadow">
       <div>
@@ -26,6 +31,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         <div className="space-y-2">
           <input
             type="date"
+            value={formatDateForInput(filters.dateRange?.start || null)}
             onChange={(e) =>
               onFilterChange({
                 ...filters,
@@ -39,6 +45,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           />
           <input
             type="date"
+            value={formatDateForInput(filters.dateRange?.end || null)}
             onChange={(e) =>
               onFilterChange({
                 ...filters,
