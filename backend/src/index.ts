@@ -13,7 +13,9 @@ const app = express();
 
 app.use(helmet());
 app.use(morgan('short'));
-app.use(cors());
+app.use(cors({
+  origin: CONFIG.cors
+}));
 app.use(express.json());
 app.use(limiter);
 app.set('trust proxy', 1);

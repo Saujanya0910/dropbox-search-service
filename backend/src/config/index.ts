@@ -5,6 +5,7 @@ config();
 
 const envSchema = z.object({
   PORT: z.string().default('3000'),
+  CORS: z.string().default('http://localhost:3000'),
   ELASTICSEARCH_URL: z.string(),
   ELASTICSEARCH_API_KEY: z.string(),
   ELASTICSEARCH_INDEX: z.string(),
@@ -22,6 +23,7 @@ const env = envSchema.parse(process.env);
 
 export const CONFIG = {
   port: parseInt(env.PORT, 10),
+  cors: env.CORS.split(',').length ? env.CORS.split(',') : env.CORS,
   elasticsearch: {
     url: env.ELASTICSEARCH_URL,
     apiKey: env.ELASTICSEARCH_API_KEY,
