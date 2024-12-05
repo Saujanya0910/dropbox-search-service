@@ -156,35 +156,58 @@ export const indexDocument = async (document: IndexedDocument) => {
 export const searchDocuments = async (query: SearchQuery) => {
   const { q, page = 1, limit = 10, dateRange, fileType, minSize, maxSize } = query;
   
-  const must: any[] = [
-    {
+  const must: any[] = [];
+
+  if(!(q && q.trim() && q.length)) {
+    must.push({
+      match_all: {}
+    });
+  } else {
+    must.push({
       multi_match: {
         query: q,
-        fields: ['fileName^2', 'content'],
+        fields: ['fileName', 'content'],
         fuzziness: 'AUTO',
-      },
-    },
-  ];
-
-  if (dateRange) {
-    must.push({
-      range: {
-        createdAt: {
-          gte: dateRange.start,
-          lte: dateRange.end,
-        },
-      },
+      }
     });
   }
-
+  
+  // apply filters
+  if (dateRange) {
+    if(dateRange.start && dateRange.end) {
+      must.push({
+        range: {
+          createdAt: {
+            gte: dateRange.start,
+            lte: dateRange.end,
+          }
+        }
+      });
+    } else if(dateRange.start) {
+      must.push({
+        range: {
+          createdAt: {
+            gte: dateRange.start,
+          }
+        }
+      });
+    } else if(dateRange.end) {
+      must.push({
+        range: {
+          createdAt: {
+            lte: dateRange.end,
+          }
+        }
+      });
+    }
+  }
   if (fileType?.length) {
     must.push({
       terms: {
-        fileType,
+        fileType: fileType.map((type) => type.toLowerCase())
       },
     });
   }
-
   if (minSize || maxSize) {
     must.push({
       range: {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const SearchQuerySchema = z.object({
-  q: z.string().min(1),
+  q: z.string().min(0),
   page: z.string().optional().transform(Number).default('1'),
   dateRange: z
     .object({
