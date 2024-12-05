@@ -3,8 +3,8 @@ export interface SearchQuery {
   page?: number;
   limit?: number;
   dateRange?: {
-    start: Date;
-    end: Date;
+    start?: Date;
+    end?: Date;
   };
   fileType?: string[];
   minSize?: number;
