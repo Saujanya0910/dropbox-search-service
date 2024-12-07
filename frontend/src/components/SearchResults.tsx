@@ -42,14 +42,18 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           <div className="flex justify-between items-start">
             <div>
               <h3 className="text-lg font-medium text-gray-900">
-                <a
+                {result.dropboxUrl ? (
+                  <a
                   href={result.dropboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-blue-600"
-                >
+                  >
                   {result.fileName}
-                </a>
+                  </a>
+                ) : (
+                  <span>{result.fileName}</span>
+                )}
               </h3>
               <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
                 <span className="flex items-center">

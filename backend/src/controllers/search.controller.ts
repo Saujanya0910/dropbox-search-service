@@ -27,7 +27,12 @@ export class SearchController {
       const results = await Promise.all(
         searchResponse.hits.hits.map(async (hit) => {
           const source = hit._source as IndexedDocument;
-          const dropboxUrl = await getDropboxUrl(source.dropboxPath);
+          let dropboxUrl = null;
+          try {
+            dropboxUrl = await getDropboxUrl(source.dropboxPath);
+          } catch (error) {
+            console.error(`[SEARCH CONTROLLER] [search] Error getting Dropbox URL for '${source.dropboxPath}': `, error);
+          }
           
           return {
             fileName: source.fileName,
